@@ -7,7 +7,6 @@ DEFAULT_CONFIG="${HOME}/.config/xivl-otp-helper/config.json"
 STATE_DIR="${XDG_STATE_HOME:-${HOME}/.local/state}/xivl-otp-helper"
 LOG_FILE="${STATE_DIR}/helper.log"
 HELPER_PID=""
-LAUNCHER_PID=""
 STEAM_URI="steam://rungameid/39210"
 
 if ! command -v python3 >/dev/null 2>&1; then
@@ -39,34 +38,20 @@ cleanup_helper() {
 }
 
 cleanup_on_exit() {
-  if [[ -n "${LAUNCHER_PID}" ]]; then
-    wait "${LAUNCHER_PID}" 2>/dev/null || true
-  fi
   cleanup_helper
 }
 
 trap cleanup_on_exit EXIT INT TERM
 
 echo "Starting OTP helper in background..."
-python3 "${HELPER}" --autofill-once --verbose >"${LOG_FILE}" 2>&1 &
+python3 -u "${HELPER}" --autofill-once --verbose >"${LOG_FILE}" 2>&1 &
 HELPER_PID=$!
 
 echo "Launching FFXIV through Steam..."
-bash -lc "steam ${STEAM_URI}" &
-LAUNCHER_PID=$!
+steam "${STEAM_URI}"
 
-if wait "${LAUNCHER_PID}"; then
-  LAUNCHER_STATUS=0
-else
-  LAUNCHER_STATUS=$?
-fi
-LAUNCHER_PID=""
-
-if kill -0 "${HELPER_PID}" 2>/dev/null; then
-  echo "XIVLauncher exited before OTP autofill completed. Stopping helper..."
-  cleanup_helper
-else
-  wait "${HELPER_PID}" 2>/dev/null || true
+if wait "${HELPER_PID}"; then
+  exit 0
 fi
 
-exit "${LAUNCHER_STATUS}"
+exit $?
