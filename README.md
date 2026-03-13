@@ -35,6 +35,12 @@ Normal user flow:
 ./start-ffxiv.sh
 ```
 
+Desktop shortcut setup:
+
+```bash
+./create-desktop-shortcut.sh
+```
+
 That script:
 - starts the OTP helper in the background
 - launches the Steam FFXIV app (`39210`)
@@ -101,6 +107,8 @@ Use this for day-to-day launching:
 
 If the helper config is missing, `start-ffxiv.sh` will tell you to run `./setup.sh` first.
 `start-ffxiv.sh` launches FFXIV through Steam using app id `39210`.
+
+`./create-desktop-shortcut.sh` creates `~/.local/share/applications/final-fantasy-xiv-online.desktop` and ships its own XIVLauncher icon from the repo. When possible, it copies that bundled SVG into `~/.local/share/icons/hicolor/scalable/apps/` before writing the desktop entry.
 
 ## Advanced Usage
 
