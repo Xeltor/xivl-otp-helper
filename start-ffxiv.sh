@@ -44,7 +44,7 @@ cleanup_on_exit() {
 trap cleanup_on_exit EXIT INT TERM
 
 echo "Starting OTP helper in background..."
-python3 -u "${HELPER}" --autofill-once --verbose >"${LOG_FILE}" 2>&1 &
+python3 -u "${HELPER}" >"${LOG_FILE}" 2>&1 &
 HELPER_PID=$!
 
 echo "Launching FFXIV through Steam..."

@@ -99,16 +99,13 @@ export XIVL_OTP_SECRET='BASE32SECRETGOESHERE'
 ./start-ffxiv.sh
 ```
 
-Raw helper commands:
+Raw helper command:
 
 ```bash
-python3 xivl_otp_helper.py --once --verbose
-python3 xivl_otp_helper.py --watch --verbose
-python3 xivl_otp_helper.py --autofill-once --verbose
-python3 xivl_otp_helper.py --watch --config ~/.config/xivl-otp-helper/config.json --interval 2
+python3 xivl_otp_helper.py
 ```
 
-Use `--once` to try a single submission against an already-open listener, `--watch` to keep polling, and `--autofill-once` for the normal wait-submit-exit behavior used by `start-ffxiv.sh`.
+The helper has a single built-in behavior: wait for the listener, submit one OTP, then exit. That matches the normal flow used by `start-ffxiv.sh`.
 
 ## Developer / Technical Details
 
@@ -146,7 +143,7 @@ Example file:
 - It expects the root endpoint to return an XIVLauncher banner with `app` set to `XIVLauncher` and a `version` beginning with `core-`, or equivalent body text.
 - It submits the current code to `http://127.0.0.1:4646/ffxivlauncher/<6-digit-code>`.
 - It avoids resending the same code repeatedly during the same listener session.
-- `--autofill-once` exits non-zero if the listener never appears before timeout.
+- It exits non-zero if the listener never appears before the built-in timeout.
 
 ### Desktop shortcut behavior
 

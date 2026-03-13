@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import argparse
 import base64
 import hashlib
 import hmac
@@ -40,9 +39,7 @@ class ListenerState:
     raw_body: str = ""
 
 
-def log(message: str, *, verbose: bool = True) -> None:
-    if not verbose:
-        return
+def log(message: str) -> None:
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{timestamp}] {message}")
 
@@ -165,30 +162,10 @@ def submit_code(code: str) -> bool:
     return LISTENER_BANNER_APP in body
 
 
-def run_once(secret: bytes, *, verbose: bool) -> int:
-    state = detect_listener()
-    if not state.up:
-        log("Listener is not available at http://127.0.0.1:4646/.", verbose=verbose)
-        return 1
-
-    code = generate_totp(secret)
-    if submit_code(code):
-        log("Submitted OTP to XIVLauncher listener.", verbose=verbose)
-        return 0
-
-    log("Listener responded unexpectedly during submission.", verbose=verbose)
-    return 1
-
-
-def run_watch(secret: bytes, *, interval: float, verbose: bool) -> int:
-    return run_watch_until(secret, interval=interval, verbose=verbose)
-
-
 def run_watch_until(
     secret: bytes,
     *,
     interval: float,
-    verbose: bool,
     exit_after_submit: bool = False,
     timeout: float | None = None,
 ) -> int:
@@ -196,17 +173,13 @@ def run_watch_until(
     last_submitted_code: str | None = None
     deadline = None if timeout is None else (time.monotonic() + timeout)
 
-    log(
-        f"Watching XIVLauncher listener at {LISTENER_BASE_URL}/ every {interval:.1f}s.",
-        verbose=verbose,
-    )
+    log(f"Watching XIVLauncher listener at {LISTENER_BASE_URL}/ every {interval:.1f}s.")
 
     try:
         while True:
             if deadline is not None and time.monotonic() >= deadline:
                 log(
                     "Timed out waiting for the XIVLauncher OTP listener.",
-                    verbose=verbose,
                 )
                 return 1
 
@@ -214,7 +187,7 @@ def run_watch_until(
 
             if not state.up:
                 if session_seen:
-                    log("Listener disappeared; resetting session state.", verbose=verbose)
+                    log("Listener disappeared; resetting session state.")
                 session_seen = False
                 last_submitted_code = None
                 time.sleep(interval)
@@ -223,87 +196,36 @@ def run_watch_until(
             if not session_seen:
                 session_seen = True
                 last_submitted_code = None
-                log("Listener detected.", verbose=verbose)
+                log("Listener detected.")
 
             code = generate_totp(secret)
             if code != last_submitted_code:
                 if submit_code(code):
                     last_submitted_code = code
-                    log("Submitted current OTP to XIVLauncher listener.", verbose=verbose)
+                    log("Submitted current OTP to XIVLauncher listener.")
                     if exit_after_submit:
                         return 0
                 else:
-                    log("Submission returned an unexpected response.", verbose=verbose)
+                    log("Submission returned an unexpected response.")
 
             time.sleep(interval)
     except KeyboardInterrupt:
-        log("Stopped by user.", verbose=verbose)
+        log("Stopped by user.")
         return 130
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Local XIVLauncher OTP autofill helper for Linux."
-    )
-    mode = parser.add_mutually_exclusive_group(required=True)
-    mode.add_argument("--once", action="store_true", help="Attempt one submit and exit.")
-    mode.add_argument("--watch", action="store_true", help="Watch for the listener and submit when available.")
-    mode.add_argument(
-        "--autofill-once",
-        action="store_true",
-        help="Wait for the listener, submit one OTP successfully, then exit.",
-    )
-    parser.add_argument(
-        "--config",
-        type=Path,
-        default=DEFAULT_CONFIG_PATH,
-        help=f"Path to config JSON. Default: {DEFAULT_CONFIG_PATH}",
-    )
-    parser.add_argument(
-        "--interval",
-        type=float,
-        default=LISTENER_INTERVAL,
-        help=f"Polling interval in seconds for --watch. Default: {LISTENER_INTERVAL}",
-    )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Enable informational console logs.",
-    )
-    parser.add_argument(
-        "--timeout",
-        type=float,
-        default=DEFAULT_WATCH_TIMEOUT,
-        help=(
-            "Timeout in seconds for --autofill-once. "
-            f"Default: {DEFAULT_WATCH_TIMEOUT}"
-        ),
-    )
-    return parser
-
-
 def main() -> int:
-    parser = build_parser()
-    args = parser.parse_args()
-
-    if args.interval <= 0:
-        parser.error("--interval must be greater than 0")
-    if args.timeout <= 0:
-        parser.error("--timeout must be greater than 0")
-
     try:
-        secret = load_secret(args.config.expanduser())
-        if args.once:
-            return run_once(secret, verbose=args.verbose)
-        if args.autofill_once:
-            return run_watch_until(
-                secret,
-                interval=args.interval,
-                verbose=args.verbose,
-                exit_after_submit=True,
-                timeout=args.timeout,
-            )
-        return run_watch(secret, interval=args.interval, verbose=args.verbose)
+        if len(sys.argv) > 1:
+            print("Usage: python3 xivl_otp_helper.py", file=sys.stderr)
+            return 2
+        secret = load_secret(DEFAULT_CONFIG_PATH)
+        return run_watch_until(
+            secret,
+            interval=LISTENER_INTERVAL,
+            exit_after_submit=True,
+            timeout=DEFAULT_WATCH_TIMEOUT,
+        )
     except HelperError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
